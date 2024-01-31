@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Player</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            text-align: center;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        h1 {
+            color: #1db954;
+        }
+
+        #player {
+            width: 300px;
+            margin: 20px auto;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 15px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: #1db954;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #168f48;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <h1>Music Player</h1>
+
+        <div id="player">
+            <audio id="audioPlayer" controls>
+                Your browser does not support the audio element.
+            </audio>
+        </div>
+
+        <div>
+            <button onclick="authorizeAndPlay()">Play Random Song</button>
+        </div>
+    </div>
+
+
+    <script>
+        var audioPlayer = document.getElementById('audioPlayer');
+
+        function authorizeAndPlay() {
+            const clientId = 'f30659bc3dec4691907defc6d589dae6';
+            const redirectUri = 'http://localhost:3000';
+
+            const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=user-read-private%20user-read-email&state=123`;
+
+            const authWindow = window.open(authUrl, '_blank', 'width=400,height=600');
+
+            const checkTokenInterval = setInterval(() => {
+                if (authWindow.location.href.includes('#access_token')) {
+                    const accessToken = new URLSearchParams(authWindow.location.hash.substring(1)).get('access_token');
+
+                    authWindow.close();
+
+                    getRandomPlaylist(accessToken);
+
+                    clearInterval(checkTokenInterval);
+                }
+            }, 1000);
+        }
+
+        function getRandomPlaylist(accessToken) {
+            fetch('https://api.spotify.com/v1/browse/featured-playlists', {
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken,
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const playlists = data.playlists.items;
+
+                    if (playlists.length > 0) {
+                        const randomPlaylist = playlists[Math.floor(Math.random() * playlists.length)];
+                        getPlaylistTracks(accessToken, randomPlaylist.id);
+                    } else {
+                        console.error('No featured playlists available.');
+                    }
+                })
+                .catch(error => console.error('Error fetching playlists:', error));
+        }
+
+        function getPlaylistTracks(accessToken, playlistId) {
+            fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken,
+                },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const tracks = data.items;
+
+                    if (tracks.length > 0) {
+                        const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
+                        playAudio(randomTrack.track.preview_url);
+                    } else {
+                        console.error('No tracks available in the selected playlist.');
+                    }
+                })
+                .catch(error => console.error('Error fetching playlist tracks:', error));
+        }
+
+        function playAudio(audioUrl) {
+            if (audioUrl) {
+                audioPlayer.src = audioUrl;
+                audioPlayer.play();
+            } else {
+                console.error('No preview URL available for the selected track.');
+            }
+        }
+    </script>
+
+</body>
+
+</html>
